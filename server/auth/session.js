@@ -1,5 +1,5 @@
-import { endpoint } from "../_lib/handler.js";
-import { authenticate } from "../_lib/auth.js";
+import { endpoint } from "../../api/_lib/handler.js";
+import { authenticate } from "../../api/_lib/auth.js";
 
 export default endpoint({
   methods: ["GET"], scope: "auth-session", limit: 120, windowSeconds: 60,

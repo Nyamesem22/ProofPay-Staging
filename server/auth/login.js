@@ -1,9 +1,9 @@
-import { endpoint } from "../_lib/handler.js";
-import { readJson, sessionCookie, getIp } from "../_lib/http.js";
-import { parse, loginSchema } from "../_lib/validation.js";
-import { verifyPassword, randomToken, sha256 } from "../_lib/crypto.js";
-import { unauthorised } from "../_lib/errors.js";
-import { createSession, findUserByPhone, writeAudit } from "../_lib/repository.js";
+import { endpoint } from "../../api/_lib/handler.js";
+import { readJson, sessionCookie, getIp } from "../../api/_lib/http.js";
+import { parse, loginSchema } from "../../api/_lib/validation.js";
+import { verifyPassword, randomToken, sha256 } from "../../api/_lib/crypto.js";
+import { unauthorised } from "../../api/_lib/errors.js";
+import { createSession, findUserByPhone, writeAudit } from "../../api/_lib/repository.js";
 
 const publicUser = user => ({ id: user.id, fullName: user.full_name, phone: user.phone_e164, accountType: user.account_type, roles: user.roles, verificationStatus: user.verification_status, preferredLanguage: user.preferred_language, isDemo: user.is_demo });
 

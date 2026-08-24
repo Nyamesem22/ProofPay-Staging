@@ -13,7 +13,7 @@ export default [
     },
   },
   {
-    files: ["api/**/*.js", "scripts/**/*.mjs", "tests/**/*.mjs", "worker/**/*.js", "vite.config.mjs"],
+    files: ["api/**/*.js", "server/**/*.js", "scripts/**/*.mjs", "tests/**/*.mjs", "worker/**/*.js", "vite.config.mjs"],
     languageOptions: { ecmaVersion: "latest", sourceType: "module", globals: { ...globals.node, fetch: "readonly", Request: "readonly", Response: "readonly", AbortSignal: "readonly" } },
     rules: {
       "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
