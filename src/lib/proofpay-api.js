@@ -133,3 +133,15 @@ export async function createProtectedTransaction(input) {
     return { transaction, mode: "browser-demo" };
   }
 }
+
+export async function listProtectedTransactions() {
+  try { return await request("/api/transactions"); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    return { transactions: read(localTransactionsKey, []), mode: "browser-demo" };
+  }
+}
+
+export async function loadAdminOverview() {
+  return request("/api/admin/overview");
+}

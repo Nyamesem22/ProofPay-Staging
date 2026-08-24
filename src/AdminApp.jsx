@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowClockwise, ArrowRight, ArrowsClockwise, Bank, Bell, Buildings,
@@ -9,6 +9,7 @@ import {
   User, UsersThree, Wallet, WarningCircle, XCircle,
 } from "@phosphor-icons/react";
 import "./admin.css";
+import { loadAdminOverview } from "./lib/proofpay-api";
 
 const spring = { type: "spring", stiffness: 360, damping: 30 };
 
@@ -208,6 +209,10 @@ function Toast({message}){return <motion.div className="admin-toast" initial={{o
 
 export function AdminApp({onExit}){
   const [view,setView]=useState("command"),[role,setRole]=useState("Operations"),[transactions,setTransactions]=useState(initialTransactions),[selectedTransaction,setSelectedTransaction]=useState(null),[selectedAccount,setSelectedAccount]=useState(null),[partnerOutage,setPartnerOutage]=useState(false),[toast,setToast]=useState("");
+  useEffect(()=>{loadAdminOverview().then(data=>{
+    if(!data.recentTransactions?.length)return;
+    setTransactions(data.recentTransactions.map(row=>({id:row.reference,item:row.item_description,account:row.receiver_name,buyer:row.buyer_name,amount:Number(row.amount_minor)/100,country:"Ghana",channel:row.receiver_provider,status:row.status.replaceAll("_"," "),state:row.status,age:"Live",checks:["RELEASED","READY_TO_RELEASE"].includes(row.status)?8:5,total:8,owner:"Database",tone:row.status==="RELEASED"?"blue":["DISPUTED","FAILED"].includes(row.status)?"red":["PROTECTED","READY_TO_RELEASE"].includes(row.status)?"green":"amber",route:row.receiver_provider,evidence:row.required_evidence})));
+  }).catch(()=>{})},[]);
   const notify=message=>{setToast(message);window.setTimeout(()=>setToast(""),3200)};
   const release=id=>{setTransactions(rows=>rows.map(t=>t.id===id?{...t,status:"Released",state:"SETTLED",age:partnerOutage?"58 sec":"41 sec",tone:"blue",owner:"Automatic"}:t));setSelectedTransaction(null);notify(partnerOutage?"Payment released through the approved backup route in 58 seconds.":"Payment released successfully in 41 seconds.")};
   const retry=id=>{setTransactions(rows=>rows.map(t=>t.id===id?{...t,status:"Released",state:"SETTLED",age:"54 sec",tone:"blue",owner:"Automatic",issue:null}:t));setSelectedTransaction(null);notify("Payout confirmed. The same idempotency key prevented a duplicate release.")};

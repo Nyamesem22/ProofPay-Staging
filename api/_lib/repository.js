@@ -133,13 +133,28 @@ export async function recordWebhook({ provider, providerEventId, signatureValid,
 
 export async function adminOverview() {
   const sql = db();
-  const [transactions, disputes, users, commands] = await sql.transaction([
+  const [transactions, disputes, users, commands, recentTransactions, recentAccounts, recentDisputes, recentAudit] = await sql.transaction([
     sql`SELECT status, count(*)::int AS count, coalesce(sum(amount_minor),0)::bigint AS amount_minor FROM transactions GROUP BY status`,
     sql`SELECT status, count(*)::int AS count FROM disputes GROUP BY status`,
     sql`SELECT account_type, count(*)::int AS count FROM users GROUP BY account_type`,
     sql`SELECT status, count(*)::int AS count FROM payment_commands GROUP BY status`,
+    sql`SELECT t.id, t.reference, t.item_description, t.receiver_name, t.receiver_provider, t.amount_minor, t.currency,
+      t.status, t.required_evidence, t.created_at, t.updated_at, u.full_name AS buyer_name
+      FROM transactions t JOIN users u ON u.id = t.buyer_user_id ORDER BY t.created_at DESC LIMIT 100`,
+    sql`SELECT u.id, u.full_name, u.account_type, u.verification_status, u.status, u.phone_e164, u.created_at,
+      w.provider, w.wallet_phone_e164, w.status AS wallet_status,
+      count(t.id)::int AS transaction_count, coalesce(sum(t.amount_minor),0)::bigint AS lifetime_amount_minor
+      FROM users u LEFT JOIN wallets w ON w.user_id = u.id LEFT JOIN transactions t ON t.buyer_user_id = u.id
+      GROUP BY u.id, w.provider, w.wallet_phone_e164, w.status ORDER BY u.created_at DESC LIMIT 100`,
+    sql`SELECT d.id, d.case_reference, d.transaction_id, d.reason, d.description, d.status, d.created_at,
+      t.reference, t.amount_minor, t.currency, opener.full_name AS opened_by_name
+      FROM disputes d JOIN transactions t ON t.id = d.transaction_id JOIN users opener ON opener.id = d.opened_by
+      ORDER BY d.created_at DESC LIMIT 100`,
+    sql`SELECT a.id, a.action, a.entity_type, a.entity_id, a.result, a.metadata, a.created_at,
+      coalesce(u.full_name, 'ProofPay system') AS actor_name
+      FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_user_id ORDER BY a.created_at DESC LIMIT 100`,
   ], { readOnly: true });
-  return { transactions, disputes, users, paymentCommands: commands, generatedAt: new Date().toISOString() };
+  return { transactions, disputes, users, paymentCommands: commands, recentTransactions, recentAccounts, recentDisputes, recentAudit, generatedAt: new Date().toISOString() };
 }
 
 export async function listStaffReports() {

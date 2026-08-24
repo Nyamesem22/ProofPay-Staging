@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import "@fontsource-variable/inter";
 import { AdminApp } from "./AdminApp";
-import { createProtectedTransaction, loginAccount, logoutAccount, registerAccount, restoreAccount } from "./lib/proofpay-api";
+import { createProtectedTransaction, listProtectedTransactions, loginAccount, logoutAccount, registerAccount, restoreAccount } from "./lib/proofpay-api";
 
 const navItems = [
   { id: "home", label: "Home", icon: House },
@@ -33,6 +33,13 @@ const historyTransactions = [
   { ref: "PP-260805-6B4Q", item: "Farm supplies", buyer: "Kojo Mensah", seller: "Green Field Co-op", amount: 620, fee: 9.30, date: "05 Aug 2026", dateKey: "2026-08-05", status: "Released", channel: "AT Money" },
   { ref: "PP-260728-2D5R", item: "Catering deposit", buyer: "Kojo Mensah", seller: "Akwaaba Kitchen", amount: 180, fee: 0, date: "28 Jul 2026", dateKey: "2026-07-28", status: "Cancelled", channel: "MTN MoMo" },
 ];
+
+function customerTransaction(row){
+  const rawStatus=row.status||"PROTECTED";
+  const labels={READY_TO_RELEASE:"Ready to release",RELEASED:"Released",REFUNDED:"Refunded",DISPUTED:"On hold",CANCELLED:"Cancelled",PROTECTED:"Protected"};
+  return {ref:row.reference||row.ref||`PP-${String(row.id||"DEMO").slice(0,8).toUpperCase()}`,item:row.item_description||row.itemDescription||row.item||"Protected payment",buyer:row.buyer_name||row.buyer||"You",seller:row.receiver_name||row.receiverName||row.counterpartyName||row.seller||"Receiver",amount:Number(row.amount_minor!=null?row.amount_minor/100:row.amount||0),fee:Number(row.fee_minor!=null?row.fee_minor/100:row.fee||0),date:new Date(row.created_at||row.createdAt||Date.now()).toLocaleDateString("en-GH",{day:"2-digit",month:"short",year:"numeric"}),status:labels[rawStatus]||rawStatus.toLowerCase().replaceAll("_"," ").replace(/^./,letter=>letter.toUpperCase()),channel:row.receiver_provider||row.receiverProvider||row.counterpartyProvider||row.channel||"Mobile money"};
+}
+let syncedActivityRows=historyTransactions;
 
 const progressStages = [
   { id: "agreed", label: "Terms agreed", detail: "22 Aug, 10:15 AM" },
@@ -119,9 +126,9 @@ function SimpleHomeView({stage,openModal,setView}){
   </section>
 }
 
-function TransactionsView({stage,openModal,onSelect}){
+function TransactionsView({stage,openModal,onSelect,activityRows=syncedActivityRows}){
   const [query,setQuery]=useState(""),[statusFilter,setStatusFilter]=useState("All");
-  const rows=useMemo(()=>historyTransactions.map((item,index)=>index===0?{...item,status:stage==="released"?"Released":stage==="disputed"?"On hold":stage==="delivered"?"Ready to release":"Protected"}:item),[stage]);
+  const rows=useMemo(()=>activityRows.map((item,index)=>index===0?{...item,status:stage==="released"?"Released":stage==="disputed"?"On hold":stage==="delivered"?"Ready to release":item.status}:item),[stage,activityRows]);
   const visible=useMemo(()=>rows.filter(item=>{
     const text=`${item.item} ${item.seller} ${item.buyer} ${item.ref}`.toLowerCase();
     return text.includes(query.trim().toLowerCase())&&(statusFilter==="All"||item.status===statusFilter);
@@ -634,8 +641,11 @@ function LandingPage({onEnter,onAdmin}){
 
 export function App(){
   const initialPortal=window.location.pathname.startsWith("/admin")?"admin":"public";
-  const [portal,setPortal]=useState(initialPortal),[view,setView]=useState("home"),[modal,setModal]=useState(null),[stage,setStage]=useState("protected"),[toast,setToast]=useState(""),[selectedPayment,setSelectedPayment]=useState(null),[user,setUser]=useState(null);
+  const [portal,setPortal]=useState(initialPortal),[view,setView]=useState("home"),[modal,setModal]=useState(null),[stage,setStage]=useState("protected"),[toast,setToast]=useState(""),[selectedPayment,setSelectedPayment]=useState(null),[user,setUser]=useState(null),[,setActivityRows]=useState(historyTransactions);
   useEffect(()=>{if(initialPortal!=="admin")restoreAccount().then(session=>{if(session?.user){setUser(session.user);setPortal("customer")}}).catch(()=>{})},[]);
+  const refreshActivity=()=>listProtectedTransactions().then(data=>{if(data.transactions?.length){syncedActivityRows=data.transactions.map(customerTransaction);setActivityRows(syncedActivityRows)}}).catch(()=>{});
+  useEffect(()=>{if(portal==="customer"&&user)refreshActivity()},[portal,user]);
+  useEffect(()=>{if(portal==="customer"&&user&&view==="transactions")refreshActivity()},[view]);
   const goPortal=next=>{window.history.pushState({},"",next==="admin"?"/admin":"/");setPortal(next);window.scrollTo(0,0)};
   const notify=message=>{setToast(message);window.setTimeout(()=>setToast(""),3600)};
   const reset=()=>{setStage("protected");setView("home");setModal(null);setSelectedPayment(null);notify("Pitch demo reset to the protected-payment stage.")};
