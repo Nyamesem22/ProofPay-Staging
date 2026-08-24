@@ -1,0 +1,39 @@
+{
+  "name": "proofpay-prototype",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/prepare-sites-build.mjs",
+    "build:vercel": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src api scripts tests worker vite.config.mjs",
+    "test": "vitest run",
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "test:all": "npm run test && npm run build && npm run test:sites",
+    "check": "npm run lint && npm run test:all && npm audit --audit-level=high",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:create-admin": "node scripts/create-admin.mjs",
+    "security:audit": "npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@sentry/node": "^10.70.0",
+    "@vercel/blob": "^2.8.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "motion": "^13.1.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vite": "^6.4.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0",
+    "vitest": "^4.1.11"
+  }
+}
