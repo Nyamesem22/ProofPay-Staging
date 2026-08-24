@@ -3,7 +3,24 @@ const localUsersKey = "proofpay.demo.users.v1";
 const localSessionKey = "proofpay.demo.session.v1";
 const localTransactionsKey = "proofpay.demo.transactions.v1";
 
+function makeId() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0"));
+  return `${hex.slice(0,4).join("")}-${hex.slice(4,6).join("")}-${hex.slice(6,8).join("")}-${hex.slice(8,10).join("")}-${hex.slice(10).join("")}`;
+}
+
 async function digest(value) {
+  if (!crypto.subtle) {
+    let hash = 2166136261;
+    for (const character of value) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return `local-demo-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+  }
   const bytes = new TextEncoder().encode(value);
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
@@ -45,8 +62,8 @@ async function createLocalAccount(input) {
   if (!input.fullName?.trim()) throw new Error("Enter your full name.");
   if (input.password.length < 12 || !/[a-z]/.test(input.password) || !/[A-Z]/.test(input.password) || !/\d/.test(input.password) || !/[^A-Za-z0-9]/.test(input.password)) throw new Error("Use at least 12 characters with uppercase, lowercase, a number and a symbol.");
   if (users.some(user => user.phone === phone)) throw new Error("A demo account already exists for this mobile number. Log in instead.");
-  const salt = crypto.randomUUID();
-  const user = { id: crypto.randomUUID(), fullName: input.fullName, phone, provider: input.provider, passwordHash: await digest(`${salt}:${input.password}`), salt, roles: ["customer"], accountType: "individual", verificationStatus: "demo", isDemo: true, mode: "browser-demo" };
+  const salt = makeId();
+  const user = { id: makeId(), fullName: input.fullName, phone, provider: input.provider, passwordHash: await digest(`${salt}:${input.password}`), salt, roles: ["customer"], accountType: "individual", verificationStatus: "demo", isDemo: true, mode: "browser-demo" };
   users.push(user);
   write(localUsersKey, users);
   write(localSessionKey, { userId: user.id, createdAt: new Date().toISOString() });
@@ -109,7 +126,7 @@ export async function createProtectedTransaction(input) {
   try { return await request("/api/transactions", { method: "POST", body: payload }); }
   catch (error) {
     if (!canFallback(error)) throw error;
-    const transaction = { id: crypto.randomUUID(), reference: `PP-DEMO-${Date.now().toString(36).toUpperCase()}`, status: "PROTECTED", isDemo: true, createdAt: new Date().toISOString(), ...input };
+    const transaction = { id: makeId(), reference: `PP-DEMO-${Date.now().toString(36).toUpperCase()}`, status: "PROTECTED", isDemo: true, createdAt: new Date().toISOString(), ...input };
     const transactions = read(localTransactionsKey, []);
     transactions.unshift(transaction);
     write(localTransactionsKey, transactions.slice(0, 100));
