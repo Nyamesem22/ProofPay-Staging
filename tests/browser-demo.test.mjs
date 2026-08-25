@@ -31,4 +31,16 @@ describe("browser-only pitch fallback", () => {
     expect(result.mode).toBe("browser-demo");
     expect(result.transaction.status).toBe("PROTECTED");
   });
+
+  it("keeps local dispute and notification counters consistent", async () => {
+    const payment = await api.createProtectedTransaction({ receiverName: "Ama Store", receiverPhone: "+233249876543", receiverProvider: "MTN MoMo", itemDescription: "Blender", amount: 300, currency: "GHS", deliveryDueAt: "2026-08-25", inspectionHours: 24, requiredEvidence: "Delivery photo", releaseRule: "Buyer confirms" });
+    const opened = await api.openCustomerDispute(payment.transaction.id, { reason: "Item not received", description: "The protected item did not arrive as agreed." });
+    expect(opened.dispute.status).toBe("OPEN");
+    const before = await api.getNotifications();
+    expect(before.unreadCount).toBe(2);
+    const afterOne = await api.markNotificationRead(before.notifications[0].id);
+    expect(afterOne.unreadCount).toBe(1);
+    const afterAll = await api.markAllNotificationsRead();
+    expect(afterAll.unreadCount).toBe(0);
+  });
 });

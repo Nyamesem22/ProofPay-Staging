@@ -1,4 +1,4 @@
-const CACHE_NAME = "proofpay-shell-v2";
+const CACHE_NAME = "proofpay-shell-v1";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -7,9 +7,7 @@ const APP_SHELL = [
   "/icons/proofpay-192.png",
   "/icons/proofpay-512.png",
   "/icons/proofpay-maskable-512.png",
-  "/assets/proofpay-horizontal.png",
-  "/assets/proofpay-horizontal-dark.png",
-  "/assets/blender.png"
+  "/assets/proofpay-app-mark-transparent.png"
 ];
 
 self.addEventListener("install", event => {
@@ -28,6 +26,7 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
+
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
@@ -35,8 +34,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put("/", copy));
+          if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put("/", response.clone()));
           return response;
         })
         .catch(() => caches.match("/"))
@@ -47,7 +45,9 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(request).then(cached => {
       const network = fetch(request).then(response => {
-        if (response.ok) caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+        if (response.ok && response.type === "basic") {
+          caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+        }
         return response;
       });
       return cached || network;

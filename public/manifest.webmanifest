@@ -6,10 +6,13 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#031c4b",
-  "theme_color": "#031c4b",
+  "background_color": "#eef1f2",
+  "theme_color": "#07566f",
+  "lang": "en-GH",
   "categories": ["finance", "business", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/proofpay-192.png",

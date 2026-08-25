@@ -17,12 +17,15 @@ if (password.length < 12 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) |
 }
 
 const normalisedPhone = phone.startsWith("+233") ? phone : phone.replace(/^0/, "+233");
+const passwordHash = await hashPassword(password);
 let user = await findUserByPhone(normalisedPhone);
 if (!user) {
-  const created = await createUserWithWallet({ fullName, phone: normalisedPhone, provider: "Staff account", passwordHash: await hashPassword(password) });
+  const created = await createUserWithWallet({ fullName, phone: normalisedPhone, provider: "Staff account", passwordHash });
   user = created.user;
 }
 
 const sql = db();
-await sql`UPDATE users SET account_type = 'staff', roles = ARRAY['customer','staff','admin']::text[], verification_status = 'verified', is_demo = false, updated_at = now() WHERE id = ${user.id}`;
+await sql`UPDATE users SET full_name = ${fullName}, password_hash = ${passwordHash}, account_type = 'staff',
+  roles = ARRAY['customer','staff','admin']::text[], status = 'active', verification_status = 'verified',
+  is_demo = false, updated_at = now() WHERE id = ${user.id}`;
 console.log(`Admin access prepared for ${normalisedPhone}.`);

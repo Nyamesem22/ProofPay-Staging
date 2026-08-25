@@ -32,6 +32,9 @@ export const transactionSchema = z.object({
   inspectionHours: z.coerce.number().int().min(1).max(720).default(24),
   requiredEvidence: z.string().trim().min(3).max(100),
   releaseRule: z.string().trim().min(3).max(80),
+  agreementType: z.string().trim().min(3).max(40).default("Goods delivery"),
+  agreementStatement: z.string().trim().min(10).max(2000),
+  automaticAgreementConfirmation: z.boolean().default(true),
   demoMode: z.boolean().default(true),
 });
 
@@ -39,6 +42,18 @@ export const disputeSchema = z.object({
   reason: z.enum(["Item not received", "Wrong item delivered", "Item damaged", "Service not completed", "Other"]),
   description: z.string().trim().min(10).max(3000),
 });
+
+export const notificationUpdateSchema = z.object({
+  id: z.string().uuid().optional(),
+  all: z.boolean().optional(),
+}).refine(value => value.all === true || Boolean(value.id), "Choose a notification to mark as read.");
+
+export const adminActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("dispute.status"), entityId: z.string().uuid(), status: z.enum(["OPEN", "EVIDENCE_REQUIRED", "UNDER_REVIEW", "RESOLVED_RELEASE", "RESOLVED_REFUND", "RESOLVED_SPLIT", "CLOSED"]), note: z.string().trim().max(2000).optional() }),
+  z.object({ action: z.literal("user.status"), entityId: z.string().uuid(), status: z.enum(["active", "suspended", "closed"]) }),
+  z.object({ action: z.literal("user.verification"), entityId: z.string().uuid(), status: z.enum(["pending", "verified", "rejected"]) }),
+  z.object({ action: z.literal("transaction.release-demo"), entityId: z.string().uuid() }),
+]);
 
 export const staffReportSchema = z.object({
   department: z.string().trim().min(2).max(80),

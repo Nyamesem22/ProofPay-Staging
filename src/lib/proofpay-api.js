@@ -2,6 +2,8 @@ const allowLocalDemo = import.meta.env.VITE_ALLOW_LOCAL_DEMO !== "false";
 const localUsersKey = "proofpay.demo.users.v1";
 const localSessionKey = "proofpay.demo.session.v1";
 const localTransactionsKey = "proofpay.demo.transactions.v1";
+const localDisputesKey = "proofpay.demo.disputes.v1";
+const localNotificationsKey = "proofpay.demo.notifications.v1";
 
 function makeId() {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -32,6 +34,12 @@ function read(key, fallback) {
 
 function write(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function addLocalNotification(notification) {
+  const notifications = read(localNotificationsKey, []);
+  notifications.unshift({ id: crypto.randomUUID(), readAt: null, createdAt: new Date().toISOString(), ...notification });
+  write(localNotificationsKey, notifications.slice(0, 100));
 }
 
 async function request(path, options = {}) {
@@ -67,6 +75,7 @@ async function createLocalAccount(input) {
   users.push(user);
   write(localUsersKey, users);
   write(localSessionKey, { userId: user.id, createdAt: new Date().toISOString() });
+  addLocalNotification({ type: "account.created", title: "Welcome to ProofPay", message: "Your browser demo account was created.", actionPath: "/dashboard" });
   return { user: publicLocalUser(user), mode: "browser-demo" };
 }
 
@@ -121,6 +130,9 @@ export async function createProtectedTransaction(input) {
     inspectionHours: (input.inspectionHours ?? Number.parseInt(input.inspectionPeriod, 10)) || 24,
     requiredEvidence: input.requiredEvidence ?? input.evidenceRequired,
     releaseRule: input.releaseRule,
+    agreementType: input.agreementType,
+    agreementStatement: input.agreementStatement,
+    automaticAgreementConfirmation: input.automaticAgreementConfirmation,
     demoMode: true,
   };
   try { return await request("/api/transactions", { method: "POST", body: payload }); }
@@ -130,6 +142,7 @@ export async function createProtectedTransaction(input) {
     const transactions = read(localTransactionsKey, []);
     transactions.unshift(transaction);
     write(localTransactionsKey, transactions.slice(0, 100));
+    addLocalNotification({ type: "transaction.created", title: "Payment protected", message: `${transaction.reference} is now protected.`, entityId: transaction.id, actionPath: "/dashboard?view=transactions" });
     return { transaction, mode: "browser-demo" };
   }
 }
@@ -142,6 +155,69 @@ export async function listProtectedTransactions() {
   }
 }
 
+export const listCustomerTransactions = listProtectedTransactions;
+
 export async function loadAdminOverview() {
   return request("/api/admin/overview");
+}
+
+export async function listCustomerDisputes() {
+  try { return await request("/api/operations/disputes"); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    return { disputes: read(localDisputesKey, []), mode: "browser-demo" };
+  }
+}
+
+export async function openCustomerDispute(transactionId, input) {
+  try { return await request(`/api/transactions/${encodeURIComponent(transactionId)}/dispute`, { method: "POST", body: input }); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    const transaction = read(localTransactionsKey, []).find(item => item.id === transactionId);
+    if (!transaction) throw new Error("Create a protected payment before reporting a problem.", { cause: error });
+    const dispute = { id: crypto.randomUUID(), caseReference: `DSP-DEMO-${Date.now().toString(36).toUpperCase()}`, transactionId, reason: input.reason, description: input.description, status: "OPEN", createdAt: new Date().toISOString(), transactionReference: transaction.reference, itemDescription: transaction.itemDescription || transaction.item, amountMinor: Math.round(Number(transaction.amount) * 100), currency: transaction.currency || "GHS", receiverName: transaction.receiverName || transaction.counterpartyName };
+    const disputes = read(localDisputesKey, []);
+    disputes.unshift(dispute);
+    write(localDisputesKey, disputes.slice(0, 100));
+    addLocalNotification({ type: "dispute.opened", title: "Problem report received", message: `${dispute.caseReference} is open.`, entityId: dispute.id, actionPath: "/dashboard?view=disputes" });
+    return { dispute, mode: "browser-demo" };
+  }
+}
+
+export async function getNotifications() {
+  try { return await request("/api/operations/notifications"); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    const notifications = read(localNotificationsKey, []);
+    return { notifications, unreadCount: notifications.filter(item => !item.readAt).length, mode: "browser-demo" };
+  }
+}
+
+export async function markNotificationRead(id) {
+  try { return await request("/api/operations/notifications", { method: "PATCH", body: { id } }); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    const notifications = read(localNotificationsKey, []).map(item => item.id === id ? { ...item, readAt: item.readAt || new Date().toISOString() } : item);
+    write(localNotificationsKey, notifications);
+    return { notifications, unreadCount: notifications.filter(item => !item.readAt).length, mode: "browser-demo" };
+  }
+}
+
+export async function markAllNotificationsRead() {
+  try { return await request("/api/operations/notifications", { method: "PATCH", body: { all: true } }); }
+  catch (error) {
+    if (!canFallback(error)) throw error;
+    const now = new Date().toISOString();
+    const notifications = read(localNotificationsKey, []).map(item => ({ ...item, readAt: item.readAt || now }));
+    write(localNotificationsKey, notifications);
+    return { notifications, unreadCount: 0, mode: "browser-demo" };
+  }
+}
+
+export async function getAdminOperations() {
+  return request("/api/operations/admin-data");
+}
+
+export async function runAdminAction(input) {
+  return request("/api/operations/admin-action", { method: "PATCH", body: input });
 }

@@ -24,20 +24,17 @@ describe("installable ProofPay PWA", () => {
     const worker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
     expect(html).toContain('rel="manifest"');
     expect(html).toContain('rel="apple-touch-icon"');
-    expect(entry).toContain('serviceWorker.register("/sw.js")');
+    expect(entry).toContain('serviceWorker.register("/sw.js", { updateViaCache: "none" })');
     expect(worker).toContain('request.mode === "navigate"');
     expect(worker).toContain("caches.match");
   });
 
-  it("uses full wordmarks and compact marks in the correct contexts", async () => {
+  it("uses the current customer and public ProofPay marks", async () => {
     const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
-    const admin = await readFile(new URL("../src/AdminApp.jsx", import.meta.url), "utf8");
     const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-    expect(app).toContain('className="brand-logo-full" src="/assets/proofpay-horizontal-dark.png"');
-    expect(app).toContain('className="brand-logo-mark" src="/icons/proofpay-192.png"');
-    expect(app).toContain('<footer className="public-footer"><div><img src="/assets/proofpay-horizontal-dark.png"');
-    expect(app).toContain('<section className="public-final-cta"><img src="/icons/proofpay-192.png"');
-    expect(admin).toContain('className="admin-logo-mark" src="/icons/proofpay-192.png"');
-    expect(styles).toContain(".brand-logo-full{display:none}.brand-logo-mark{display:block");
+    expect(app).toContain('className="app-bar-brand-mark" src="/assets/proofpay-app-mark-transparent.png"');
+    expect(app).toContain('className="public-brand" aria-label="ProofPay home"><img src="/assets/proofpay-horizontal.png"');
+    expect(app).toContain('<section className="public-final-cta"><img src="/assets/proofpay-icon.png"');
+    expect(styles).toContain(".app-bar-brand-mark{width:68px");
   });
 });
